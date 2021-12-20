@@ -10,16 +10,18 @@ workflows:
     jobs:
       - test: 
           context: moonwalkers
-      #- build-docker-image:
-      #    context: moonwalkers
-      #- push-helm-chart:
-      #    context: moonwalkers
-      #    requires: 
-      #      - build-docker-image
-      #- deploy-helm-chart:
-      #    context: moonwalkers
-      #    requires:
-      #      - push-helm-chart
+      - build-docker-image:
+          context: moonwalkers
+          requires:
+            - test
+      - push-helm-chart:
+          context: moonwalkers
+          requires: 
+            - build-docker-image
+      - deploy-helm-chart:
+          context: moonwalkers
+          requires:
+            - push-helm-chart
 
 commands:
   prepare-gcp:
