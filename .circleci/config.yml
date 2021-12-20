@@ -8,6 +8,8 @@ orbs:
 workflows:
   ci-cd:  
     jobs:
+      - validate-app-is-running:
+          context: moonwalkers
       - lint-and-format:
           context: moonwalkers
       - test: 
@@ -28,7 +30,7 @@ workflows:
             - push-helm-chart
 
 commands:
-  prepare-gcp:
+  install-gcp-cli:
     steps:
       - gcp-cli/install:
           version: 366.0.0
@@ -80,7 +82,7 @@ jobs:
     steps:
       - checkout
       - setup_remote_docker
-      - prepare-gcp
+      - install-gcp-cli
       - configure-artifact-registry
       - run:
           name: Build Docker image
@@ -98,7 +100,7 @@ jobs:
       - image: cimg/base:2021.11
     steps:
       - checkout
-      - prepare-gcp
+      - install-gcp-cli
       - helm/install-helm-client:
           version: "v3.7.2"
       - configure-artifact-registry
@@ -115,7 +117,7 @@ jobs:
     docker:
       - image: cimg/base:2021.11
     steps:
-      - prepare-gcp
+      - install-gcp-cli
       - connect-to-gke-cluster
       - helm/install-helm-client:
           version: "v3.7.2"
@@ -129,5 +131,21 @@ jobs:
             gcloud auth print-access-token | helm registry login -u oauth2accesstoken --password-stdin https://us-east1-docker.pkg.dev
             helm upgrade --install realworld oci://us-east1-docker.pkg.dev/devops-practices-and-tools/realworld-helm/realworld --version 0.1.0
             sleep 60
+            export SERVICE_IP=$(kubectl get svc --namespace default realworld --template "{{ range (index .status.loadBalancer.ingress 0) }}{{.}}{{ end }}")
+            echo http://$SERVICE_IP:3000
+  validate-app-is-running:
+    docker:
+      - image: cimg/base:2021.11
+    steps:
+      - install-gcp-cli
+      - connect-to-gke-cluster
+      - kubernetes/install
+      - run:
+          name: Validate pod is running
+          command: |
+            kubectl get pods
+      - run:
+          name: Validate URL is reachable
+          command: | 
             export SERVICE_IP=$(kubectl get svc --namespace default realworld --template "{{ range (index .status.loadBalancer.ingress 0) }}{{.}}{{ end }}")
             echo http://$SERVICE_IP:3000
