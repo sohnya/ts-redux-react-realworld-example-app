@@ -131,8 +131,7 @@ jobs:
             gcloud auth print-access-token | helm registry login -u oauth2accesstoken --password-stdin https://us-east1-docker.pkg.dev
             helm upgrade --install realworld oci://us-east1-docker.pkg.dev/devops-practices-and-tools/realworld-helm/realworld --version 0.1.0
             sleep 60
-            export SERVICE_IP=$(kubectl get svc --namespace default realworld --template "{{ range (index .status.loadBalancer.ingress 0) }}{{.}}{{ end }}")
-            echo http://$SERVICE_IP:3000
+          # TODO: Automate sleep - check when the app is up
   validate-app-is-running:
     docker:
       - image: cimg/base:2021.11
@@ -146,7 +145,7 @@ jobs:
             kubectl get pods
       - run:
           name: Validate URL is reachable
-          command: | 
+          command: |
             export SERVICE_IP=$(kubectl get svc --namespace default realworld --template "{{ range (index .status.loadBalancer.ingress 0) }}{{.}}{{ end }}")
             echo http://$SERVICE_IP:3000
-            curl http://$SERVICE_IP
+            curl --connect-timeout 30 http://$SERVICE_IP:3000
