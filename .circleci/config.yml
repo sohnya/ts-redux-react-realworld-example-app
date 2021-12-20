@@ -8,8 +8,12 @@ orbs:
 workflows:
   ci-cd:  
     jobs:
+      - lint-and-format:
+          context: moonwalkers
       - test: 
           context: moonwalkers
+          requires:
+            - lint-and-format
       - build-docker-image:
           context: moonwalkers
           requires:
@@ -47,6 +51,16 @@ commands:
             gcloud container clusters get-credentials gke-ycit021-devops-project --region us-east1
 
 jobs:
+  lint-and-format:
+    docker: 
+    - image: cimg/node:17.3.0
+    steps:
+      - checkout
+      - run:
+          name: lint and prettier
+          command: | 
+            npm run lint
+            npm run prettier:check
   test:
     docker: 
       - image: cimg/node:17.3.0
