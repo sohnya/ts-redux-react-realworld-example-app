@@ -3,6 +3,7 @@ version: 2.1
 orbs: 
   gcp-cli: circleci/gcp-cli@2.4.0
   helm: circleci/helm@1.2.0
+  kubernetes: circleci/kubernetes@1.0.2
 
 workflows:
   ci-cd:  
@@ -67,6 +68,7 @@ jobs:
       - helm/install-helm-client:
           version: "v3.7.2"
       - configure-artifact-registry
+      - kubernetes/install
       - run:
           name: Package and push Helm chart
           command: |
@@ -80,5 +82,6 @@ jobs:
           name: Upgrade helm chart
           command: |
             helm upgrade --install realworld ./realworld
+            sleep 60
             export SERVICE_IP=$(kubectl get svc --namespace default realworld --template "{{ range (index .status.loadBalancer.ingress 0) }}{{.}}{{ end }}")
             echo http://$SERVICE_IP:3000
