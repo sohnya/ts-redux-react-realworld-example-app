@@ -10,12 +10,8 @@ workflows:
     jobs:
       - validate-app-is-running:
           context: moonwalkers
-      - lint-and-format:
-          context: moonwalkers
       - test: 
           context: moonwalkers
-          requires:
-            - lint-and-format
       - build-docker-image:
           context: moonwalkers
           requires:
@@ -58,11 +54,7 @@ jobs:
     - image: cimg/node:17.3.0
     steps:
       - checkout
-      - run:
-          name: lint and prettier
-          command: | 
-            npm run lint
-            npm run prettier:check
+
   test:
     docker: 
       - image: cimg/node:17.3.0
@@ -76,6 +68,14 @@ jobs:
           name: npm test
           command: |
             npm test
+      - run:
+          name: npm run lint
+          command: |
+            npm run lint
+      - run:
+          name: npm run prettier:check
+          command: |
+            npm run prettier:check
   build-docker-image:
     docker: 
       - image: cimg/base:2021.11
