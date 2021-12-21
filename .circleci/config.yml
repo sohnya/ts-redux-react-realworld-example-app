@@ -162,11 +162,7 @@ jobs:
       - connect-to-gke-cluster
       - kubernetes/install
       - run:
-          name: Validate pod is running
-          command: |
-            kubectl get pods
-      - run:
-          name: Validate URL is reachable
+          name: Validate that the app URL is reachable
           command: |
             export SERVICE_IP=$(kubectl get svc --namespace default realworld --template "{{ range (index .status.loadBalancer.ingress 0) }}{{.}}{{ end }}")
             echo http://$SERVICE_IP:3000
