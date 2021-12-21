@@ -13,13 +13,13 @@ See the section about [running tests](https://facebook.github.io/create-react-ap
 
 # Building Docker image and testing K8s Locally
 1. Build Docker image
-    
+
     ```
     docker build -t react-app:dev .
     ```
-    
-2. Run it to see that it works OK 
-    
+
+2. Run it to see that it works OK
+
     ```bash
     docker run \
         -it \
@@ -30,52 +30,52 @@ See the section about [running tests](https://facebook.github.io/create-react-ap
         -e CHOKIDAR_USEPOLLING=true \
         react-app:dev
     ```
-    
+
 3. Create a repository called `realworld` in gcloud artifact repository
 4. Configure docker to use that registry
-    
+
     ```
     gcloud auth configure-docker us-east1-docker.pkg.dev
     ```
-    
+
 5. Tag the docker image with that registry
-    
+
     ```bash
     docker tag react-app:dev us-east1-docker.pkg.dev/devops-practices-and-tools/realworld/react-app:dev
     ```
-    
+
 6. Push the image to the registry
-    
+
     ```bash
     docker push us-east1-docker.pkg.dev/devops-practices-and-tools/realworld/react-app:dev
     ```
-    
+
 7. Login to gcloud
-    
+
     ```
     gcloud auth application-default login
     ```
-    
+
 8. Make sure that you haven't mistakenly set extra `GOOGLE_APPLICATION_CREDENTIALS` in your .rc file.
-    
+
     <aside>
     💡 OR YOU'LL BE IN LOTS OF PAIN
     </aside>
-    
+
 9. Start minikube (this creates a cluster)
-    
+
     ```bash
     minikube start
     ```
-    
+
 10. Add on [https://minikube.sigs.k8s.io/docs/handbook/addons/gcp-auth/](https://minikube.sigs.k8s.io/docs/handbook/addons/gcp-auth/)
-    
+
     ```
     minikube addons enable gcp-auth
     ```
-    
+
 11. Create a new deployment using that Docker image
-    
+
     ```bash
     kubectl create deployment sonja --image=us-east1-docker.pkg.dev/devops-practices-and-tools/realworld/react-app:dev
     ```
@@ -91,7 +91,7 @@ See the section about [running tests](https://facebook.github.io/create-react-ap
     ```
 
 # Details (original documentation)
-The root of the application is the `src/components/App` component. The App component uses react-router's HashRouter to display the different pages. Each page is represented by a [function component](https://reactjs.org/docs/components-and-props.html). 
+The root of the application is the `src/components/App` component. The App component uses react-router's HashRouter to display the different pages. Each page is represented by a [function component](https://reactjs.org/docs/components-and-props.html).
 
 Some components include a `.slice` file that contains the definition of its state and reducers, which might also be used by other components. These slice files follow the [Redux Toolkit](https://redux-toolkit.js.org/) guidelines. Components connect to the state by using [custom hooks](https://reactjs.org/docs/hooks-custom.html#using-a-custom-hook).
 

@@ -1,34 +1,50 @@
 version: 2.1
 
-orbs: 
+orbs:
   gcp-cli: circleci/gcp-cli@2.4.0
   helm: circleci/helm@1.2.0
   kubernetes: circleci/kubernetes@1.0.2
   docker: circleci/docker@2.0.1
 
 workflows:
-  ci-cd:  
+  ci-cd:
     jobs:
       - docker-lint:
           context: moonwalkers
-      - npm-test: 
+      - npm-test:
           context: moonwalkers
           requires:
             - docker-lint
       - build-and-push-docker-image:
           context: moonwalkers
+          filters:
+            branches:
+              only:
+                - master
           requires:
             - npm-test
       - push-helm-chart:
           context: moonwalkers
-          requires: 
+          filters:
+            branches:
+              only:
+                - master
+          requires:
             - build-and-push-docker-image
       - deploy-helm-chart:
           context: moonwalkers
+          filters:
+            branches:
+              only:
+                - master
           requires:
             - push-helm-chart
       - validate-app-is-running:
           context: moonwalkers
+          filters:
+            branches:
+              only:
+                - master
           requires:
             - deploy-helm-chart
 
@@ -62,13 +78,13 @@ jobs:
       - checkout
       - docker/hadolint
   npm-test:
-    docker: 
+    docker:
       - image: cimg/node:17.3.0
     steps:
       - checkout
       - run:
           name: npm install
-          command: | 
+          command: |
             npm install
       - run:
           name: npm test
@@ -83,7 +99,7 @@ jobs:
           command: |
             npm run prettier:check
   build-and-push-docker-image:
-    docker: 
+    docker:
       - image: cimg/base:2021.11
     steps:
       - checkout
@@ -102,7 +118,7 @@ jobs:
             docker push ${GCP_REGISTRY_PATH}/realworld-app:${CIRCLE_SHA1}
             docker push ${GCP_REGISTRY_PATH}/realworld-app:latest
   push-helm-chart:
-    docker: 
+    docker:
       - image: cimg/base:2021.11
     steps:
       - checkout
