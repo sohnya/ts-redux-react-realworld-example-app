@@ -1,30 +1,55 @@
 version: 2.1
 
-orbs: 
+orbs:
   gcp-cli: circleci/gcp-cli@2.4.0
   helm: circleci/helm@1.2.0
   kubernetes: circleci/kubernetes@1.0.2
+  docker: circleci/docker@2.0.1
 
 workflows:
-  ci-cd:  
+  ci-cd:
     jobs:
-      - test: 
+      - docker-lint:
           context: moonwalkers
-      - build-docker-image:
+      - npm-test:
           context: moonwalkers
           requires:
-            - test
+            - docker-lint
+      - build-and-push-docker-image:
+          context: moonwalkers
+          filters:
+            branches:
+              only:
+                - master
+          requires:
+            - npm-test
       - push-helm-chart:
           context: moonwalkers
-          requires: 
-            - build-docker-image
+          filters:
+            branches:
+              only:
+                - master
+          requires:
+            - build-and-push-docker-image
       - deploy-helm-chart:
           context: moonwalkers
+          filters:
+            branches:
+              only:
+                - master
           requires:
             - push-helm-chart
+      - validate-app-is-running:
+          context: moonwalkers
+          filters:
+            branches:
+              only:
+                - master
+          requires:
+            - deploy-helm-chart
 
 commands:
-  prepare-gcp:
+  install-gcp-cli:
     steps:
       - gcp-cli/install:
           version: 366.0.0
@@ -47,32 +72,45 @@ commands:
             gcloud container clusters get-credentials gke-ycit021-devops-project --region us-east1
 
 jobs:
-  test:
-    docker: 
+  docker-lint:
+    executor: docker/hadolint
+    steps:
+      - checkout
+      - docker/hadolint
+  npm-test:
+    docker:
       - image: cimg/node:17.3.0
     steps:
       - checkout
       - run:
           name: npm install
-          command: | 
+          command: |
             npm install
       - run:
           name: npm test
           command: |
             npm test
-  build-docker-image:
-    docker: 
+      - run:
+          name: npm run lint
+          command: |
+            npm run lint
+      - run:
+          name: npm run prettier:check
+          command: |
+            npm run prettier:check
+  build-and-push-docker-image:
+    docker:
       - image: cimg/base:2021.11
     steps:
       - checkout
       - setup_remote_docker
-      - prepare-gcp
+      - install-gcp-cli
       - configure-artifact-registry
       - run:
           name: Build Docker image
           command: |
             docker build -t realworld-app .
-      - deploy:
+      - run:
           name: Tag and Push Docker image
           command: |
             docker tag realworld-app ${GCP_REGISTRY_PATH}/realworld-app:${CIRCLE_SHA1}
@@ -80,11 +118,11 @@ jobs:
             docker push ${GCP_REGISTRY_PATH}/realworld-app:${CIRCLE_SHA1}
             docker push ${GCP_REGISTRY_PATH}/realworld-app:latest
   push-helm-chart:
-    docker: 
+    docker:
       - image: cimg/base:2021.11
     steps:
       - checkout
-      - prepare-gcp
+      - install-gcp-cli
       - helm/install-helm-client:
           version: "v3.7.2"
       - configure-artifact-registry
@@ -101,7 +139,7 @@ jobs:
     docker:
       - image: cimg/base:2021.11
     steps:
-      - prepare-gcp
+      - install-gcp-cli
       - connect-to-gke-cluster
       - helm/install-helm-client:
           version: "v3.7.2"
@@ -115,5 +153,21 @@ jobs:
             gcloud auth print-access-token | helm registry login -u oauth2accesstoken --password-stdin https://us-east1-docker.pkg.dev
             helm upgrade --install realworld oci://us-east1-docker.pkg.dev/devops-practices-and-tools/realworld-helm/realworld --version 0.1.0
             sleep 60
+          # TODO: Automate sleep - check when the app is up
+  validate-app-is-running:
+    docker:
+      - image: cimg/base:2021.11
+    steps:
+      - install-gcp-cli
+      - connect-to-gke-cluster
+      - kubernetes/install
+      - run:
+          name: Validate pod is running
+          command: |
+            kubectl get pods
+      - run:
+          name: Validate URL is reachable
+          command: |
             export SERVICE_IP=$(kubectl get svc --namespace default realworld --template "{{ range (index .status.loadBalancer.ingress 0) }}{{.}}{{ end }}")
             echo http://$SERVICE_IP:3000
+            curl --connect-timeout 30 http://$SERVICE_IP:3000
