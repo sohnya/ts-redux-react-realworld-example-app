@@ -15,18 +15,14 @@ workflows:
           context: moonwalkers
           requires:
             - docker-lint
-      - build-docker-image:
+      - build-and-push-docker-image:
           context: moonwalkers
           requires:
             - npm-test
-      - push-docker-image:
-          context: moonwalkers
-          requires:
-            - build-docker-image
       - push-helm-chart:
           context: moonwalkers
           requires: 
-            - build-docker-image
+            - build-and-push-docker-image
       - deploy-helm-chart:
           context: moonwalkers
           requires:
@@ -86,30 +82,18 @@ jobs:
           name: npm run prettier:check
           command: |
             npm run prettier:check
-  build-docker-image:
+  build-and-push-docker-image:
     docker: 
       - image: cimg/base:2021.11
     steps:
-      - checkout
-      - setup_remote_docker
-      - run:
-          name: Build Docker image
-          command: |
-            docker build -t realworld-app .
-      - persist_to_workspace:
-          root: .
-          paths:
-            - .
-  push-docker-image:
-    docker: 
-      - image: cimg/base:2021.11
-    steps:
-      - attach_workspace:
-          at: .
       - checkout
       - setup_remote_docker
       - install-gcp-cli
       - configure-artifact-registry
+      - run:
+          name: Build Docker image
+          command: |
+            docker build -t realworld-app .
       - run:
           name: Tag and Push Docker image
           command: |
