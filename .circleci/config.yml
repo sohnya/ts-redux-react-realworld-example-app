@@ -4,18 +4,25 @@ orbs:
   gcp-cli: circleci/gcp-cli@2.4.0
   helm: circleci/helm@1.2.0
   kubernetes: circleci/kubernetes@1.0.2
+  docker: circleci/docker@2.0.1
 
 workflows:
   ci-cd:  
     jobs:
-      - validate-app-is-running:
+      - docker-lint:
           context: moonwalkers
-      - test: 
+      - npm-test: 
           context: moonwalkers
+          requires:
+            - docker-lint
       - build-docker-image:
           context: moonwalkers
           requires:
-            - test
+            - npm-test
+      - push-docker-image:
+          context: moonwalkers
+          requires:
+            - build-docker-image
       - push-helm-chart:
           context: moonwalkers
           requires: 
@@ -24,6 +31,10 @@ workflows:
           context: moonwalkers
           requires:
             - push-helm-chart
+      - validate-app-is-running:
+          context: moonwalkers
+          requires:
+            - deploy-helm-chart
 
 commands:
   install-gcp-cli:
@@ -49,13 +60,12 @@ commands:
             gcloud container clusters get-credentials gke-ycit021-devops-project --region us-east1
 
 jobs:
-  lint-and-format:
-    docker: 
-    - image: cimg/node:17.3.0
+  docker-lint:
+    executor: docker/hadolint
     steps:
       - checkout
-
-  test:
+      - docker/hadolint
+  npm-test:
     docker: 
       - image: cimg/node:17.3.0
     steps:
@@ -82,13 +92,25 @@ jobs:
     steps:
       - checkout
       - setup_remote_docker
-      - install-gcp-cli
-      - configure-artifact-registry
       - run:
           name: Build Docker image
           command: |
             docker build -t realworld-app .
-      - deploy:
+      - persist_to_workspace:
+          root: .
+          paths:
+            - .
+  push-docker-image:
+    docker: 
+      - image: cimg/base:2021.11
+    steps:
+      - attach_workspace:
+          at: .
+      - checkout
+      - setup_remote_docker
+      - install-gcp-cli
+      - configure-artifact-registry
+      - run:
           name: Tag and Push Docker image
           command: |
             docker tag realworld-app ${GCP_REGISTRY_PATH}/realworld-app:${CIRCLE_SHA1}
